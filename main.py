@@ -40,8 +40,7 @@ INS_results_btn = InlineKeyboardMarkup(
     [[InlineKeyboardButton("INS results", callback_data="INS results")]]
 )
 
-async with httpx.AsyncClient(timeout=30) as client:
-    response = await client.post(...)
+
 timeout = httpx.Timeout(
     connect=30.0,
     read=180.0,
