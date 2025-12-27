@@ -39,34 +39,34 @@ def format_gpa_message(data: dict) -> str:
 INS_results_btn = InlineKeyboardMarkup(
     [[InlineKeyboardButton("INS results", callback_data="INS results")]]
 )
+
+async with httpx.AsyncClient(timeout=30) as client:
+    response = await client.post(...)
+timeout = httpx.Timeout(
+    connect=30.0,
+    read=180.0,
+    write=30.0,
+    pool=30.0,
+)
+
+http_client = httpx.AsyncClient(timeout=timeout)
+
 async def get_user_info(telegram_id: str):
-    payload = {
-        "telegram_id": str(telegram_id)
-    }
-
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.post(
-            f"{BASE_API}/user-info",
-            json=payload
-        )
-
-    return response
-
+    return await http_client.post(
+        f"{BASE_API}/user-info",
+        json={"telegram_id": str(telegram_id)},
+    )
 
 async def get_gpa_api(telegram_id: str, studentId: str, password: str):
-    payload = {
-        "telegram_id": str(telegram_id),
-        "studentId": studentId,
-        "password": password
-    }
+    return await http_client.post(
+        f"{BASE_API}/get-GPA-table",
+        json={
+            "telegram_id": str(telegram_id),
+            "studentId": studentId,
+            "password": password,
+        },
+    )
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.post(
-            f"{BASE_API}/get-GPA-table",
-            json=payload
-        )
-
-    return response
 
 
 STUDENT_ID, PASSWORD = range(2)
@@ -136,7 +136,14 @@ async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return PASSWORD
     else:
         await update.message.reply_text("Please wait!... ⏳\nWe are checking your login and password!\nIt might take up to 1 minut!")
-        response = await get_gpa_api(update.effective_user.id,student_id,password)
+        try:
+            response = await get_gpa_api(update.effective_user.id, student_id, password)
+        except httpx.ReadTimeout:
+            await update.message.reply_text(
+                "⏳ The INS system is responding slowly right now.\n\n"
+                "Please try again in a minute."
+            )
+            return PASSWORD
         
         data = response.json()
         if data["status_code"] == 403:
@@ -193,12 +200,20 @@ async def getting_gpa(update:Update,context:ContextTypes.DEFAULT_TYPE,):
         await query.message.reply_text(formatted_text,parse_mode = "Markdown")
 
     await query.message.reply_text("For getting GPA results click INS results button!",reply_markup=INS_results_btn)
+async def on_shutdown(app):
+    await http_client.aclose()
 
 
 
 
 if __name__ == "__main__":
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    application = (
+    ApplicationBuilder()
+    .token(BOT_TOKEN)
+    .post_shutdown(on_shutdown)
+    .build()
+)
+
 
    # start_handler = CommandHandler('start',start)
     conv_handler = ConversationHandler(
