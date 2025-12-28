@@ -127,12 +127,7 @@ async def get_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Password must be at least 8 characters long")
         return PASSWORD
 
-    if not re.search(r"[A-Z]", password):
-        await update.message.reply_text("Password must contain at least one uppercase letter")
-        return PASSWORD
-    if not re.search(r"\d", password):
-        await update.message.reply_text("Password must contain at least one number")
-        return PASSWORD
+    
     else:
         await update.message.reply_text("Please wait!... ⏳\nWe are checking your login and password!\nIt might take up to 1 minut!")
         try:
